@@ -7,15 +7,13 @@
 #include <stdint.h>
 
 #define SIZE 8
+#define WHITE 0
+#define BLACK 1
 
-static char *whitePieces[] = {"R", "N", "B", "Q", "K", "B", "N", "R"};
-static char *blackPieces[] = {"r", "n", "b", "k", "q", "b", "n", "r"};
-static char whitePawn = 'P', blackPawn = 'p', empty = 'x';
+static char *whitePieces[] = {"x", "P", "K", "Q", "B", "N", "R"};
+static char *blackPieces[] = {"x", "p", "k", "q", "b", "n", "r"};
 
-enum pieces {EMPTY, PAWN, KING, QUEEN, BISHOP, KNIGHT, ROOK};
-
-
-
+enum Piece {EMPTY, PAWN, KING, QUEEN, BISHOP, KNIGHT, ROOK};
 
 void red(void) {
     printf("\033[0;31m");
@@ -47,28 +45,27 @@ void printBoard(uint32_t (*board)[SIZE][SIZE]) {
         for(j = 0; j < SIZE; j++) {
             uint32_t current = (*board)[i][j];
 
+            uint32_t color = (current & (1 << 3)) >> 3;
+            uint32_t piece = current & (7);
+
+            char boardPiece = 'x';
+
             // empty piece
-            if(current == 'x') {
+            if(piece == EMPTY) {
                 reset();
             }
             // white piece
-            else if(current < 'a') {
+            else if(color == WHITE) {
                 blue();
+                boardPiece = *(whitePieces[piece]);
             }
             // black piece
             else {
                 red();
+                boardPiece = *(blackPieces[piece]);
             }
 
-            if(current == EMPTY) {
-                char piece = 'x';
-
-                printf("%c ", piece);
-            } else {
-                char piece = 'p';
-
-                printf("%c ", piece);
-            }
+            printf("%c ", boardPiece);
 
             // reset color
             reset();
@@ -88,15 +85,87 @@ void printBoard(uint32_t (*board)[SIZE][SIZE]) {
     reset();
 }
 
+uint32_t getPiece(uint32_t (*board)[SIZE][SIZE], int row, int col) {
+    if(row < 0 || col < 0 || row >= SIZE || col >= SIZE) {
+        return -1;
+    }
+
+    uint32_t selected = (*board)[row][col];
+
+    return (selected & 7);
+
+}
+
+// -1 for empty. 0 is white and 1 is black (#define)
+uint32_t getColor(uint32_t (*board)[SIZE][SIZE], int row, int col) {
+    if(row < 0 || col < 0 || row >= SIZE || col >= SIZE) {
+        return -1;
+    }
+
+    uint32_t selected = (*board)[row][col];
+
+    if(getPiece(board, row, col) != EMPTY) {
+        return (selected & (1 << 3)) >> 3;
+    }
+
+    return -1;
+}
+
+// return 0 for invalid move. 1 for valid move.
+int makeMove(uint32_t (*board)[SIZE][SIZE], const char move[10]) {
+    char pieceChar = move[0];
+    enum Piece current;
+
+    size_t len = strlen(move);
+
+    // extract piece
+    if(pieceChar >= 'a' && pieceChar <= 'h') {
+        current = PAWN;
+    } else if(pieceChar == 'K') {
+        current = KING;
+    } else if(pieceChar == 'Q') {
+        current = QUEEN;
+    } else if(pieceChar == 'B') {
+        current = BISHOP;
+    } else if(pieceChar == 'N') {
+        current = KNIGHT;
+    } else if(pieceChar == 'R') {
+        current = ROOK;
+    } else {
+        current = EMPTY;
+    }
+
+    // extract row/col of extraction
+
+
+
+    printf("You are trying to move a: %d\n", current);
+
+
+
+    return 0;
+}
+
+
 
 
 int main(void) {
-    uint32_t pieceOrder[] = { ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK };
+    uint32_t whitePieceOrder[] = { ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK };
+    uint32_t blackPieceOrder[] = { ROOK, KNIGHT, BISHOP, KING, QUEEN, BISHOP, KNIGHT, ROOK };
     uint32_t board[SIZE][SIZE] = { { EMPTY } };
+
+    int colorPos = 3;
 
     int i;
     for(i = 0; i < SIZE; i++) {
-        board[0][i] += PAWN << 16;
+        board[0][i] = board[0][i] | (1 << colorPos) + blackPieceOrder[i];
+        board[1][i] = board[1][i] | (1 << colorPos) + PAWN;
+        board[2][i] += EMPTY;
+        board[3][i] += EMPTY;
+        board[4][i] += EMPTY;
+        board[5][i] += EMPTY;
+        board[6][i] = (board[6][i] & ~(1 << colorPos)) + PAWN;
+        board[7][i] = (board[7][i] & ~(1 << colorPos)) + whitePieceOrder[i];
     }
 
     printBoard(&board);
@@ -108,6 +177,8 @@ int main(void) {
         printf("It's your move: ");
         scanf("%s", move);
         printf("\n");
+
+        makeMove(&board, move);
 
         if(strcmp(move, "exit") == 0) {
             break;
